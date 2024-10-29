@@ -110,7 +110,7 @@ public extension SQLight {
 
 
 
-extension SQLight {
+public extension SQLight {
     
     func create<T: SyncableRecord>(record: T)  throws {
         try database.write { db in
