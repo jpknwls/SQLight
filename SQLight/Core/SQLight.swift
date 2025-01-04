@@ -102,7 +102,9 @@ public final class SQLight {
         } else {
             self.userDefaults = .standard
         }
-
+        
+        
+        var databaseHasMigrated = false
         if configuration.isDummy {
             self.database = try! DatabaseQueue()
         } else {
@@ -115,16 +117,38 @@ public final class SQLight {
                     configuration: databaseConfiguration
                 )
 
+                let initialMigrations = try self.database.read { db in
+                                   return try migrator.appliedMigrations(db)
+                               }
+
+                
                 try migrator.migrate(self.database)
+                
+                let afterMigrations = try self.database.read { db in
+                                   return try migrator.appliedMigrations(db)
+                               }
+                               // If any migration occurred, we'll sync the whole database to ensure any new default values sync too.
+                               if initialMigrations != afterMigrations {
+                                   databaseHasMigrated = true
+                               }
             } catch {
                 fatalError("Unresolved error \(error)")
             }
 
             // Lazily start.
-            initializeSyncEngine()
 
             Task {
+                initializeSyncEngine()
+                
+                if databaseHasMigrated {
+                    // Sync all entity types as an initial method, this can get smarter by only migrating those that have been altered.
+                    for modelType in modelTypes {
+                        try? pushAll(for: modelType)
+                    }
+                }
+                
                 try? await syncEngine.fetchChanges()
+
             }
         }
     }
@@ -274,7 +298,7 @@ private extension SQLight {
     func handleFetchedRecordZoneChanges(_ event: CKSyncEngine.Event.FetchedRecordZoneChanges) {
         Logger.database.info("Handle fetched record zone changes \(event)")
 
-        var deferredRecords = [any SyncableRecord]()
+//        var deferredRecords = [any SyncableRecord]()
         for modification in event.modifications {
             // The sync engine fetched a record, and we want to merge it into our local persistence.
             // If we already have this object locally, let's merge the data from the server.
@@ -291,20 +315,21 @@ private extension SQLight {
                             // This will fail to handle if the parent record isn't in the same batch. Maybe a instance-wide "deferred" array to check each time.
                             // Alternatively, we could use this method and just YOLO it into the database anyway.
                             // https://github.com/groue/GRDB.swift/issues/172
-                            do {
-                                try model.save(db)
-                            } catch ResultCode.SQLITE_CONSTRAINT_FOREIGNKEY {
-                                // Defer and try again later
-                                deferredRecords.append(model)
-                            } catch {
-                                throw error
-                            }
+//                            do {
+//                                try model.save(db)
+//                            } catch ResultCode.SQLITE_CONSTRAINT_FOREIGNKEY {
+//                                // Defer and try again later
+//                                deferredRecords.append(model)
+//                            } catch {
+//                                throw error
+//                            }
+                            try model.save(db)
                         }
                     }
                 }
             }
         }
-
+        
         for deferredRecord in deferredRecords {
             try? database.write { db in
                 try deferredRecord.save(db)

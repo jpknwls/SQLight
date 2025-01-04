@@ -85,7 +85,6 @@ public extension SQLight {
         let pendingSaves: [CKSyncEngine.PendingRecordZoneChange] = records.map { 
             .saveRecord($0.recordID)
         }
-
         self.syncEngine.state.add(pendingRecordZoneChanges: pendingSaves)
     }
 
@@ -98,6 +97,18 @@ public extension SQLight {
         self.syncEngine.state.add(pendingRecordZoneChanges: pendingDeletions)
     }
 
+    /// Pushes all of the given record type to CloudKit
+      /// This occurs regardless of changes.
+      /// Sometimes used during migration for schema changes.
+      func pushAll<T: HRecord>(for recordType: T.Type) throws {
+          let records = try read { db in
+              return try recordType.fetchAll(db)
+          }
+
+          queueSaves(for: records)
+      }
+
+    
     func sendChanges() async throws {
         try await self.syncEngine.sendChanges()
     }
