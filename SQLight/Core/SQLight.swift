@@ -330,11 +330,11 @@ private extension SQLight {
             }
         }
         
-        for deferredRecord in deferredRecords {
-            try? database.write { db in
-                try deferredRecord.save(db)
-            }
-        }
+//        for deferredRecord in deferredRecords {
+//            try? database.write { db in
+//                try deferredRecord.save(db)
+//            }
+//        }
 
         for deletion in event.deletions {
 
