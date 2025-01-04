@@ -100,7 +100,7 @@ public extension SQLight {
     /// Pushes all of the given record type to CloudKit
       /// This occurs regardless of changes.
       /// Sometimes used during migration for schema changes.
-      func pushAll<T: HRecord>(for recordType: T.Type) throws {
+      func pushAll<T: SyncableRecord>(for recordType: T.Type) throws {
           let records = try read { db in
               return try recordType.fetchAll(db)
           }
